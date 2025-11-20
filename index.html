@@ -779,6 +779,9 @@
               <button class="btn-main validate" id="btnValiderTicket">
                 ✅ Valider le ticket
               </button>
+              <button class="btn-main clear" id="btnDigiyPay">
+                📱 DIGIY PAY (Wave / OM)
+              </button>
               <button class="btn-main clear" id="btnViderTicket">
                 🧹 Vider
               </button>
@@ -897,6 +900,7 @@ const STATE = {
   currentSeller:null,
   products:[],
   ticket:[],
+  totalTtc:0,
   payMode:"cash",
   ticketsHistory:[],
   pro:{
@@ -1132,25 +1136,28 @@ function calcSummary(){
     }
   });
   const ttcTotal = htTotal + tva10 + tva20;
+  const ttcRounded = Math.round(ttcTotal);
+
+  STATE.totalTtc = ttcRounded;
+
   document.getElementById("sumHt").textContent = formatMoney(Math.round(htTotal));
   document.getElementById("sumTva10").textContent = formatMoney(Math.round(tva10));
   document.getElementById("sumTva20").textContent = formatMoney(Math.round(tva20));
-  document.getElementById("sumTtc").textContent = formatMoney(Math.round(ttcTotal));
+  document.getElementById("sumTtc").textContent = formatMoney(ttcRounded);
 
   updateRendu();
 }
 
 function updateRendu(){
   const encaisse = Number(document.getElementById("inputEncaisse").value || "0");
-  const ttcText = document.getElementById("sumTtc").textContent.replace(/\s|FCFA/g,"");
-  const ttc = Number(ttcText) || 0;
-  const rendu = encaisse - ttc;
+  const ttc = STATE.totalTtc || 0;
   const el = document.getElementById("renduText");
   if(!encaisse || !ttc){
     el.textContent = "Rendu : 0";
     el.style.color = "#166534";
     return;
   }
+  const rendu = encaisse - ttc;
   if(rendu < 0){
     el.textContent = "Manque : " + formatMoney(Math.abs(rendu));
     el.style.color = "#b91c1c";
@@ -1168,8 +1175,7 @@ function validateTicket(){
     alert("Aucun article sur le ticket.");
     return;
   }
-  const ttcText = document.getElementById("sumTtc").textContent.replace(/\s|FCFA/g,"");
-  const ttc = Number(ttcText) || 0;
+  const ttc = STATE.totalTtc || 0;
   if(!ttc){
     alert("Total invalide.");
     return;
@@ -1354,6 +1360,7 @@ function tryLogin(){
 function logout(){
   STATE.currentSeller = null;
   STATE.ticket = [];
+  STATE.totalTtc = 0;
   document.getElementById("inputEncaisse").value = "";
   updateRendu();
   renderTicket();
@@ -1408,9 +1415,29 @@ function bindEvents(){
   });
   document.getElementById("btnValiderTicket").addEventListener("click", validateTicket);
   document.getElementById("btnViderTicket").addEventListener("click", clearTicket);
+  document.getElementById("btnDigiyPay").addEventListener("click", openDigiyPay);
 
   document.getElementById("btnAddProduct").addEventListener("click", addProductFromAdmin);
   document.getElementById("btnSavePro").addEventListener("click", saveProIdentity);
+}
+
+// ==============================
+// DIGIY PAY BRIDGE
+// ==============================
+function openDigiyPay(){
+  const total = STATE.totalTtc || 0;
+  if(!total){
+    alert("Aucun montant TTC à envoyer à DIGIY PAY.");
+    return;
+  }
+  const baseUrl = "https://digiylyfe.com/digiy-pay-prive/";
+  try{
+    const url = new URL(baseUrl);
+    url.searchParams.set("amount", total);
+    window.open(url.toString(), "_blank");
+  }catch(e){
+    window.open(baseUrl, "_blank");
+  }
 }
 
 // ==============================
